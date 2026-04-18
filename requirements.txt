@@ -12,11 +12,12 @@ huggingface_hub>=0.28.0
 sentencepiece>=0.2.0
 protobuf>=5.0
 
-# Training framework
-axolotl[flash-attn,liger]>=0.8.0
+# Training framework — do NOT use axolotl[flash-attn,...] here: that pulls flash-attn while pip
+# resolves deps and its wheel build runs without torch (ModuleNotFoundError). Install flash-attn in
+# runpod_bootstrap.sh after torch via: pip install flash-attn --no-build-isolation
+axolotl>=0.8.0
 
-# FlashAttention 3 - H200 Hopper only
-# flash-attn will be installed via runpod_bootstrap.sh because it needs CUDA at build time
+# flash-attn: installed in runpod_bootstrap.sh (requires torch + CUDA at compile time)
 
 # Liger Kernel (fused ops, big VRAM + throughput win)
 liger-kernel>=0.5.0

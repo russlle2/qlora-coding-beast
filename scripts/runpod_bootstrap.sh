@@ -40,17 +40,13 @@ git lfs install >/dev/null
 echo "[bootstrap] pip upgrades..."
 pip install --upgrade pip setuptools wheel packaging ninja >/dev/null
 
-echo "[bootstrap] installing project requirements..."
-# Install without flash-attn first; flash-attn needs torch present before it can build
+echo "[bootstrap] installing project requirements (torch first; axolotl without flash-attn extra)..."
 pip install -r requirements.txt
 
-# FlashAttention 3 for H200 Hopper. If FA3 package is not available, this falls back to FA2
-# (axolotl will use whichever exposes the flash_attn_* API).
-echo "[bootstrap] installing flash-attn..."
-pip install flash-attn --no-build-isolation || {
-  echo "[bootstrap] flash-attn pip install failed; trying pre-built wheel index..."
-  pip install flash-attn --no-build-isolation --index-url https://flash-attn.cdn.example/ || true
-}
+# flash-attn must be built with torch importable; pip's isolated build env has no torch.
+# --no-build-isolation uses the current env where torch was just installed.
+echo "[bootstrap] installing flash-attn (no build isolation)..."
+pip install "flash-attn>=2.7.0" --no-build-isolation
 
 # -------- 3. HF auth --------
 echo "[bootstrap] HF login..."
