@@ -1,0 +1,68 @@
+# Phase 2a: adapter-tools
+# 1x H200 141GB, QLoRA NF4, 32K seq, 1 epoch
+# Expected wall clock: ~2-2.5h training
+
+base_model: Qwen/Qwen3-Coder-30B-A3B-Instruct
+model_type: AutoModelForCausalLM
+tokenizer_type: AutoTokenizer
+
+load_in_4bit: true
+bnb_4bit_quant_type: nf4
+bnb_4bit_use_double_quant: true
+bnb_4bit_compute_dtype: bfloat16
+
+adapter: qlora
+lora_r: 32
+lora_alpha: 16
+lora_dropout: 0.05
+lora_target_linear: true
+
+flash_attention: true
+plugins:
+  - axolotl.integrations.liger.LigerPlugin
+liger_rope: true
+liger_rms_norm: true
+liger_glu_activation: true
+liger_fused_linear_cross_entropy: true
+
+gradient_checkpointing: true
+sample_packing: true
+pad_to_sequence_len: true
+sequence_len: 32768
+
+micro_batch_size: 2
+gradient_accumulation_steps: 8
+num_epochs: 1
+optimizer: paged_adamw_8bit
+lr_scheduler: cosine
+learning_rate: 2.0e-4
+warmup_ratio: 0.03
+weight_decay: 0.0
+bf16: true
+
+chat_template: chatml
+datasets:
+  - path: /workspace/data/tools_chatml.jsonl
+    type: chat_template
+    field_messages: messages
+    message_field_role: role
+    message_field_content: content
+
+dataset_prepared_path: /workspace/data/prepared_tools
+shuffle_merged_datasets: true
+val_set_size: 0.0
+
+output_dir: /workspace/outputs/adapter_tools
+hub_model_id: russlle2/qwen3-coder-30b-a3b-adapter-tools
+hub_strategy: checkpoint
+hub_private_repo: true
+
+save_strategy: steps
+save_steps: 200
+save_total_limit: 3
+logging_steps: 10
+
+report_to: tensorboard
+tensorboard_log_dir: /workspace/outputs/adapter_tools/tb
+
+seed: 42

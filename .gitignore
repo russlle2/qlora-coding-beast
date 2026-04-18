@@ -1,0 +1,38 @@
+# Data + model artifacts (never commit, gets pushed to HF Hub instead)
+data/
+outputs/
+wandb/
+*.gguf
+*.safetensors
+*.bin
+checkpoints/
+merged_bf16/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# Secrets
+.env
+.env.local
+.huggingface/
+*.key
+id_ed25519_russlle3
+id_ed25519_russlle3.pub
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# llama.cpp clone (huge, re-clone per pod)
+llama.cpp/

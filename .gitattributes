@@ -1,0 +1,2 @@
+# Bash on Linux (RunPod) requires LF; Windows editors often save CRLF.
+*.sh text eol=lf

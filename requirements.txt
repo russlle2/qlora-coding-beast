@@ -1,0 +1,30 @@
+# Core training stack (pod-side; CUDA 12.4+ PyTorch image assumed)
+# Versions pinned to April 2026 known-good for Qwen3-Coder-30B-A3B MoE QLoRA
+
+torch>=2.5.0
+transformers>=4.49.0
+accelerate>=1.2.0
+peft>=0.14.0
+trl>=0.13.0
+bitsandbytes>=0.45.0
+datasets>=3.2.0
+huggingface_hub>=0.28.0
+sentencepiece>=0.2.0
+protobuf>=5.0
+
+# Training framework
+axolotl[flash-attn,liger]>=0.8.0
+
+# FlashAttention 3 - H200 Hopper only
+# flash-attn will be installed via runpod_bootstrap.sh because it needs CUDA at build time
+
+# Liger Kernel (fused ops, big VRAM + throughput win)
+liger-kernel>=0.5.0
+
+# Data prep utilities
+jsonlines>=4.0.0
+pandas>=2.2.0
+pyarrow>=18.0.0
+
+# Eval harness
+evalplus>=0.3.0
