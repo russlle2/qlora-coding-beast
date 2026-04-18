@@ -2,8 +2,9 @@
 # Versions pinned to April 2026 known-good for Qwen3-Coder-30B-A3B MoE QLoRA
 
 torch>=2.5.0
-# Qwen3 MoE (qwen3_moe) needs CONFIG_MAPPING in transformers >= 4.51; older releases raise KeyError
-transformers>=4.51.0
+# Axolotl 0.16+ expects transformers 5.x (e.g. AutoModelForVision2Seq). Qwen3 MoE is supported there too.
+# Do NOT use 4.x here — it breaks axolotl imports after a mistaken "upgrade".
+transformers>=5.4.0,<6
 accelerate>=1.2.0
 peft>=0.14.0
 trl>=0.13.0

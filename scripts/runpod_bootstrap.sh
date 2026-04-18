@@ -42,9 +42,9 @@ pip install --upgrade pip setuptools wheel packaging ninja >/dev/null
 
 echo "[bootstrap] installing project requirements (torch first; axolotl without flash-attn extra)..."
 pip install -r requirements.txt
-# Axolotl may pull an older transformers; Qwen3-Coder MoE requires qwen3_moe in AutoConfig (>=4.51).
-echo "[bootstrap] ensuring transformers supports Qwen3 MoE (qwen3_moe)..."
-pip install "transformers>=4.51.0" --upgrade
+# Axolotl 0.16+ requires transformers 5.x; `>=4.51` can install 4.x and breaks `AutoModelForVision2Seq` import.
+echo "[bootstrap] ensuring transformers 5.x (matches axolotl + Qwen3 MoE)..."
+pip install "transformers>=5.4.0,<6" --upgrade
 
 # flash-attn must be built with torch importable; pip's isolated build env has no torch.
 # --no-build-isolation uses the current env where torch was just installed.
