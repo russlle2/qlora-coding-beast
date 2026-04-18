@@ -42,6 +42,9 @@ pip install --upgrade pip setuptools wheel packaging ninja >/dev/null
 
 echo "[bootstrap] installing project requirements (torch first; axolotl without flash-attn extra)..."
 pip install -r requirements.txt
+# Axolotl may pull an older transformers; Qwen3-Coder MoE requires qwen3_moe in AutoConfig (>=4.51).
+echo "[bootstrap] ensuring transformers supports Qwen3 MoE (qwen3_moe)..."
+pip install "transformers>=4.51.0" --upgrade
 
 # flash-attn must be built with torch importable; pip's isolated build env has no torch.
 # --no-build-isolation uses the current env where torch was just installed.
@@ -92,4 +95,7 @@ import axolotl
 print(f"axolotl={axolotl.__version__ if hasattr(axolotl, '__version__') else 'unknown'}")
 PY
 
-echo "[bootstrap] done at $(date -u +%FT%TZ). Ready to run prepare_data.py + axolotl train."
+echo "[bootstrap] done at $(date -u +%FT%TZ)"
+echo "[bootstrap] Next: full Phase 1 (data → train → merge → GGUF → Hub report) runs autonomously via:"
+echo "           export HF_TOKEN=... && bash scripts/phase1_run_all.sh"
+echo "[bootstrap] (Bootstrap is only environment setup; phase1_run_all.sh chains the rest.)"

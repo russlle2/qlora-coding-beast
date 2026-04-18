@@ -45,8 +45,9 @@ datasets:
   - path: /workspace/data/tools_chatml.jsonl
     type: chat_template
     field_messages: messages
-    message_field_role: role
-    message_field_content: content
+    message_property_mappings:
+      role: role
+      content: content
 
 dataset_prepared_path: /workspace/data/prepared_tools
 shuffle_merged_datasets: true
