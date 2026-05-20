@@ -1,0 +1,5 @@
+liger-kernel==0.5.4
+jsonlines==4.0.0
+pandas==2.2.3
+pyarrow==19.0.1
+evalplus==0.3.1

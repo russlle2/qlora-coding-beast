@@ -1,33 +1,6 @@
-# Core training stack (pod-side; CUDA 12.4+ PyTorch image assumed)
-# Versions pinned to April 2026 known-good for Qwen3-Coder-30B-A3B MoE QLoRA
-
-torch>=2.5.0
-# Axolotl 0.16+ expects transformers 5.x (e.g. AutoModelForVision2Seq). Qwen3 MoE is supported there too.
-# Do NOT use 4.x here — it breaks axolotl imports after a mistaken "upgrade".
-transformers>=5.4.0,<6
-accelerate>=1.2.0
-peft>=0.14.0
-trl>=0.13.0
-bitsandbytes>=0.45.0
-datasets>=3.2.0
-huggingface_hub>=0.28.0
-sentencepiece>=0.2.0
-protobuf>=5.0
-
-# Training framework — do NOT use axolotl[flash-attn,...] here: that pulls flash-attn while pip
-# resolves deps and its wheel build runs without torch (ModuleNotFoundError). Install flash-attn in
-# runpod_bootstrap.sh after torch via: pip install flash-attn --no-build-isolation
-axolotl>=0.8.0
-
-# flash-attn: installed in runpod_bootstrap.sh (requires torch + CUDA at compile time)
-
-# Liger Kernel (fused ops, big VRAM + throughput win)
-liger-kernel>=0.5.0
-
-# Data prep utilities
-jsonlines>=4.0.0
-pandas>=2.2.0
-pyarrow>=18.0.0
-
-# Eval harness
-evalplus>=0.3.0
+# Pod bootstrap: installed in STAGES by scripts/runpod_bootstrap.sh (not `pip install -r` in one shot).
+# Do NOT list torch here — use the RunPod image's PyTorch (avoids pip "resolution-too-deep").
+#
+# Stage 1 (core-ml.txt): transformers, peft, bnb, datasets, etc.
+# Stage 2 (extras.txt): liger, pandas, evalplus
+# Stage 3: axolotl via --no-build-isolation (see bootstrap script)

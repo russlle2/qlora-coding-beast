@@ -3,18 +3,10 @@
 # Run once per fresh RunPod pod. Idempotent - safe to re-run.
 #
 # Expected base image: runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
-#   OR the official Axolotl image winglian/axolotl-cloud:main-latest
+#   OR winglian/axolotl-cloud:main-latest (skip most pip stages if axolotl already present)
 #
-# Required env vars before running:
-#   HF_TOKEN           - HuggingFace access token with read+write scope
-#   WANDB_API_KEY      - optional, for wandb logging
-#
-# Usage (on pod, in /workspace):
-#   cd /workspace
-#   git clone <your repo of this project> qlora-coding-beast
-#   cd qlora-coding-beast
-#   export HF_TOKEN=hf_xxx
-#   bash scripts/runpod_bootstrap.sh
+# Required env vars:
+#   HF_TOKEN
 
 set -euo pipefail
 
@@ -22,7 +14,6 @@ echo "[bootstrap] starting at $(date -u +%FT%TZ)"
 echo "[bootstrap] CUDA visible devices: ${CUDA_VISIBLE_DEVICES:-all}"
 nvidia-smi --query-gpu=name,memory.total,driver_version,compute_cap --format=csv || true
 
-# -------- 0. sanity --------
 if [[ -z "${HF_TOKEN:-}" ]]; then
   echo "[bootstrap] ERROR: HF_TOKEN env var is not set. Aborting."
   exit 1
@@ -36,36 +27,50 @@ apt-get install -y --no-install-recommends \
   >/dev/null
 git lfs install >/dev/null
 
-# -------- 2. python deps --------
-echo "[bootstrap] pip upgrades..."
-pip install --upgrade pip setuptools wheel packaging ninja >/dev/null
+# -------- 2. pip: staged installs (never `pip install -r requirements.txt` with open torch pin) --------
+export PIP_DISABLE_PIP_VERSION_CHECK=1
+export PIP_DEFAULT_TIMEOUT=600
 
-echo "[bootstrap] installing project requirements (torch first; axolotl without flash-attn extra)..."
-pip install -r requirements.txt
-# Axolotl 0.16+ requires transformers 5.x; `>=4.51` can install 4.x and breaks `AutoModelForVision2Seq` import.
-echo "[bootstrap] ensuring transformers 5.x (matches axolotl + Qwen3 MoE)..."
-pip install "transformers>=5.4.0,<6" --upgrade
+echo "[bootstrap] pip tooling..."
+pip install -q --upgrade "pip==24.3.1" "setuptools==75.8.2" "wheel==0.45.1" "packaging==24.2" "ninja==1.11.1.4"
 
-# flash-attn must be built with torch importable; pip's isolated build env has no torch.
-# --no-build-isolation uses the current env where torch was just installed.
-echo "[bootstrap] installing flash-attn (no build isolation)..."
-pip install "flash-attn>=2.7.0" --no-build-isolation
+echo "[bootstrap] image torch (do NOT upgrade — prevents resolver backtracking)..."
+python - <<'PY'
+import torch
+print(f"torch={torch.__version__} cuda={torch.version.cuda} gpus={torch.cuda.device_count()}")
+if not torch.cuda.is_available():
+    raise SystemExit("CUDA not available — wrong image or GPU not attached")
+PY
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+echo "[bootstrap] stage 1/4: core ML stack (pinned)..."
+pip install -q --no-cache-dir -r "${ROOT}/requirements-core-ml.txt"
+
+echo "[bootstrap] stage 2/4: extras..."
+pip install -q --no-cache-dir -r "${ROOT}/requirements-extras.txt"
+
+echo "[bootstrap] stage 3/4: axolotl 0.16.x (--no-deps to avoid pip resolution-too-deep / torch pin fights)..."
+# Core deps already installed in stage 1; --no-deps skips axolotl re-resolving torch/triton tree.
+pip install -q --no-cache-dir --no-build-isolation --no-deps "axolotl==0.16.1"
+
+echo "[bootstrap] stage 4/4: flash-attn (compile against installed torch)..."
+pip install -q --no-cache-dir "flash-attn==2.7.4.post1" --no-build-isolation || {
+  echo "[bootstrap] WARN: flash-attn 2.7.4.post1 failed, trying >=2.7.0..."
+  pip install -q --no-cache-dir "flash-attn>=2.7.0,<3" --no-build-isolation
+}
 
 # -------- 3. HF auth --------
 echo "[bootstrap] HF login..."
 huggingface-cli login --token "$HF_TOKEN" --add-to-git-credential
 
-# -------- 4. wandb (optional) --------
 if [[ -n "${WANDB_API_KEY:-}" ]]; then
   echo "[bootstrap] wandb login..."
   wandb login "$WANDB_API_KEY" || true
 fi
 
-# -------- 5. workspace dirs --------
 mkdir -p /workspace/data /workspace/outputs
 
-# -------- 6. pull base model weights into the HF cache (one-time, ~62GB) --------
-# Avoids first-step download during training (which counts against training wall-clock).
 echo "[bootstrap] prefetching Qwen/Qwen3-Coder-30B-A3B-Instruct to HF cache..."
 python - <<'PY'
 from huggingface_hub import snapshot_download
@@ -77,25 +82,20 @@ snapshot_download(
 print("[bootstrap] base model cached")
 PY
 
-# -------- 7. sanity test --------
-echo "[bootstrap] sanity: torch + bitsandbytes + flash-attn..."
+echo "[bootstrap] sanity check..."
 python - <<'PY'
 import torch
-print(f"torch={torch.__version__} cuda={torch.version.cuda} gpus={torch.cuda.device_count()}")
-for i in range(torch.cuda.device_count()):
-    print(f"  gpu {i}: {torch.cuda.get_device_name(i)} cap={torch.cuda.get_device_capability(i)} vram={torch.cuda.get_device_properties(i).total_memory/1e9:.1f}GB")
 import bitsandbytes as bnb
-print(f"bnb={bnb.__version__}")
+import transformers
+import peft
+import axolotl
 try:
     import flash_attn
-    print(f"flash_attn={flash_attn.__version__}")
+    fa = flash_attn.__version__
 except Exception as e:
-    print(f"flash_attn NOT INSTALLED: {e}")
-import axolotl
-print(f"axolotl={axolotl.__version__ if hasattr(axolotl, '__version__') else 'unknown'}")
+    fa = f"MISSING ({e})"
+print(f"torch={torch.__version__} transformers={transformers.__version__} bnb={bnb.__version__}")
+print(f"peft={peft.__version__} axolotl={getattr(axolotl, '__version__', '?')} flash_attn={fa}")
 PY
 
 echo "[bootstrap] done at $(date -u +%FT%TZ)"
-echo "[bootstrap] Next: full Phase 1 (data → train → merge → GGUF → Hub report) runs autonomously via:"
-echo "           export HF_TOKEN=... && bash scripts/phase1_run_all.sh"
-echo "[bootstrap] (Bootstrap is only environment setup; phase1_run_all.sh chains the rest.)"
