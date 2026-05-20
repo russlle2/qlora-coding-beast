@@ -13,20 +13,23 @@
 
 set -euo pipefail
 
-# Auto-terminate pod when pipeline exits (success or failure) so GPU billing stops while you sleep.
+# Auto-terminate pod on ANY exit (bootstrap fail, train fail, or success) to stop billing.
 AUTO_TERMINATE_POD="${AUTO_TERMINATE_POD:-1}"
+_SHUTDOWN_DONE=0
 shutdown_pod() {
   local reason="${1:-unknown}"
-  if [[ "${AUTO_TERMINATE_POD}" == "1" ]]; then
-    echo "[phase1] requesting pod shutdown (${reason})..."
-    python scripts/runpod_shutdown.py --reason "$reason" || true
+  if [[ "${AUTO_TERMINATE_POD}" != "1" ]]; then
+    return
   fi
+  if [[ "${_SHUTDOWN_DONE}" == "1" ]]; then
+    return
+  fi
+  _SHUTDOWN_DONE=1
+  echo "[phase1] requesting pod shutdown (${reason})..."
+  python scripts/runpod_shutdown.py --reason "$reason" || true
 }
-on_error() {
-  echo "[phase1] ERROR at line $1 (exit $2)"
-  shutdown_pod "phase1_failed_line_$1"
-}
-trap 'on_error $LINENO $?' ERR
+# EXIT fires on bootstrap failure, training failure, and success.
+trap 'ec=$?; if [[ $ec -eq 0 ]]; then shutdown_pod "phase1_complete"; else shutdown_pod "phase1_failed_exit_${ec}"; fi' EXIT
 
 WORKDIR="/workspace/qlora-coding-beast"
 GGUF_REPO="${GGUF_REPO:-russlle2/qwen3-coder-30b-a3b-merged-gguf}"
@@ -76,4 +79,3 @@ echo "[phase1] verifying HF checkpoints..."
 PIPELINE_PHASE=phase1 python scripts/ensure_hub_checkpoint.py || true
 
 echo "[phase1] $(date -u +%FT%TZ) done."
-shutdown_pod "phase1_complete"

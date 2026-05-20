@@ -136,7 +136,7 @@ def pick_gpu_candidates(gpus: list[dict], prefer: str | None) -> list[tuple[str,
 
 
 def build_startup_script(phase: int, repo_url: str) -> str:
-    runner = "phase1_run_all.sh" if phase == 1 else "phase2_run_all.sh"
+    runner = "overnight_phase1.sh" if phase == 1 else "phase2_run_all.sh"
     return textwrap.dedent(
         f"""\
         #!/bin/bash
