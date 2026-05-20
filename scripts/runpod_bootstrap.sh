@@ -75,7 +75,7 @@ fi
 
 mkdir -p /workspace/data /workspace/outputs
 
-if python -c "from huggingface_hub import scan_cache_dir; r=scan_cache_dir(); print(any('Qwen3-Coder-30B-A3B-Instruct' in str(x) for x in (r.repos if r else [])))" 2>/dev/null | grep -q True; then
+if [[ -d "${HF_HOME:-$HOME/.cache/huggingface}/hub/models--Qwen--Qwen3-Coder-30B-A3B-Instruct" ]]; then
   echo "[bootstrap] base model already in HF cache — skip download"
 else
   echo "[bootstrap] prefetching base model (~62GB)..."
