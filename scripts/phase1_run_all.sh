@@ -13,23 +13,12 @@
 
 set -euo pipefail
 
-# Auto-terminate pod on ANY exit (bootstrap fail, train fail, or success) to stop billing.
 AUTO_TERMINATE_POD="${AUTO_TERMINATE_POD:-1}"
-_SHUTDOWN_DONE=0
-shutdown_pod() {
-  local reason="${1:-unknown}"
-  if [[ "${AUTO_TERMINATE_POD}" != "1" ]]; then
-    return
-  fi
-  if [[ "${_SHUTDOWN_DONE}" == "1" ]]; then
-    return
-  fi
-  _SHUTDOWN_DONE=1
-  echo "[phase1] requesting pod shutdown (${reason})..."
-  python scripts/runpod_shutdown.py --reason "$reason" || true
-}
-# EXIT fires on bootstrap failure, training failure, and success.
-trap 'ec=$?; if [[ $ec -eq 0 ]]; then shutdown_pod "phase1_complete"; else shutdown_pod "phase1_failed_exit_${ec}"; fi' EXIT
+AUTO_TERMINATE_ON_FAILURE="${AUTO_TERMINATE_ON_FAILURE:-0}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/runpod_shutdown_helpers.sh
+source "${ROOT}/scripts/runpod_shutdown_helpers.sh"
+trap phase1_exit_trap EXIT
 
 WORKDIR="/workspace/qlora-coding-beast"
 GGUF_REPO="${GGUF_REPO:-russlle2/qwen3-coder-30b-a3b-merged-gguf}"
@@ -61,6 +50,7 @@ echo "[phase1] prepare uncensored dataset..."
 python scripts/prepare_data.py --dataset uncensored --out /workspace/data/uncensored_chatml.jsonl
 
 echo "[phase1] training (this takes hours; checkpoints push to HF hub_model_id)..."
+bash scripts/fix_torch_stack.sh
 axolotl train configs/adapter_uncensored.yaml 2>&1 | tee /workspace/outputs/train_phase1.log
 
 echo "[phase1] merge adapter into BF16..."

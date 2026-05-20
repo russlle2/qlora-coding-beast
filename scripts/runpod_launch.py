@@ -136,18 +136,16 @@ def pick_gpu_candidates(gpus: list[dict], prefer: str | None) -> list[tuple[str,
 
 
 def build_startup_script(phase: int, repo_url: str) -> str:
-    runner = "runpod_go.sh" if phase == 1 else "phase2_run_all.sh"
-    # Background job + sleep infinity: keeps container/web terminal alive if bootstrap fails.
-    # Training still auto-terminates pod via runpod_shutdown.py when pipeline exits.
+    # Background autostart + sleep infinity: container stays up on train/bootstrap failure.
+    # Pod terminates only after successful phase1 (AUTO_TERMINATE_ON_FAILURE=0 by default).
+    runner = "runpod_autostart.sh" if phase == 1 else "phase2_run_all.sh"
     return textwrap.dedent(
         f"""\
         (
           set -eo pipefail
-          echo "[autostart] $(date -u +%FT%TZ) phase {phase} starting"
-          # HF_TOKEN and RUNPOD_API_KEY are already in the container env from RunPod.
-          # Do NOT write export HF_TOKEN="${{HF_TOKEN}}" here — RunPod expands that into
-          # export HF_TOKEN=$hf_... which bash treats as an unbound variable (set -u).
+          echo "[launch] $(date -u +%FT%TZ) phase {phase}"
           export AUTO_TERMINATE_POD=1
+          export AUTO_TERMINATE_ON_FAILURE=0
           export REPO_URL="{repo_url}"
           cd /workspace
           if [[ ! -d qlora-coding-beast/.git ]]; then
@@ -155,9 +153,9 @@ def build_startup_script(phase: int, repo_url: str) -> str:
           fi
           cd qlora-coding-beast
           git pull --ff-only || true
+          chmod +x scripts/runpod_autostart.sh 2>/dev/null || true
           bash scripts/{runner}
-          echo "[autostart] $(date -u +%FT%TZ) pipeline finished"
-        ) >> /workspace/runpod_autostart.log 2>&1
+        ) >> /workspace/runpod_autostart.log 2>&1 &
         sleep infinity
         """
     ).strip()
@@ -302,6 +300,7 @@ def main() -> int:
                 "HF_TOKEN": hf,
                 "RUNPOD_API_KEY": api_key,
                 "AUTO_TERMINATE_POD": "1",
+                "AUTO_TERMINATE_ON_FAILURE": "0",
             },
             startup_bash=startup,
         )

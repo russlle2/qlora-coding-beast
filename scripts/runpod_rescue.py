@@ -84,7 +84,7 @@ def main() -> int:
     if action == "terminate":
         q = """
         mutation($input: PodTerminateInput!) {
-          podTerminate(input: $input) { id desiredStatus }
+          podTerminate(input: $input)
         }
         """
         print(gql(api_key, q, {"input": {"podId": pod_id}}))
@@ -93,7 +93,7 @@ def main() -> int:
     if action == "redeploy":
         q = """
         mutation($input: PodTerminateInput!) {
-          podTerminate(input: $input) { id desiredStatus }
+          podTerminate(input: $input)
         }
         """
         # Terminate all qlora pods (avoid stray billing / confusion)

@@ -2,15 +2,10 @@
 # Phase 1 after successful bootstrap (no re-bootstrap).
 set -eo pipefail
 
-_SHUTDOWN_DONE=0
-shutdown_pod() {
-  [[ "${AUTO_TERMINATE_POD:-1}" != "1" ]] && return
-  [[ "${_SHUTDOWN_DONE}" == "1" ]] && return
-  _SHUTDOWN_DONE=1
-  echo "[phase1] shutdown (${1:-done})..."
-  python scripts/runpod_shutdown.py --reason "${1:-phase1_exit}" || true
-}
-trap 'ec=$?; shutdown_pod "phase1_failed_${ec}"' EXIT
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/runpod_shutdown_helpers.sh
+source "${ROOT}/scripts/runpod_shutdown_helpers.sh"
+trap phase1_exit_trap EXIT
 
 GGUF_REPO="${GGUF_REPO:-russlle2/qwen3-coder-30b-a3b-merged-gguf}"
 export HF_TOKEN
