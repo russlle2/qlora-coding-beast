@@ -15,7 +15,13 @@ trap 'ec=$?; shutdown_pod "phase1_failed_${ec}"' EXIT
 GGUF_REPO="${GGUF_REPO:-russlle2/qwen3-coder-30b-a3b-merged-gguf}"
 export HF_TOKEN
 
-python scripts/prepare_data.py --dataset uncensored --out /workspace/data/uncensored_chatml.jsonl
+if [[ ! -f /workspace/data/uncensored_chatml.jsonl ]]; then
+  python scripts/prepare_data.py --dataset uncensored --out /workspace/data/uncensored_chatml.jsonl
+else
+  echo "[phase1] dataset already prepared, skipping"
+fi
+# Clear stale prepared cache if config changed
+rm -rf /workspace/data/prepared_uncensored
 axolotl train configs/adapter_uncensored.yaml 2>&1 | tee /workspace/outputs/train_phase1.log
 python scripts/merge_adapters.py --mode phase1 --out /workspace/outputs/merged_phase1_bf16
 export MERGED_DIR=/workspace/outputs/merged_phase1_bf16 GGUF_OUT=/workspace/outputs/gguf_phase1 HUB_REPO="$GGUF_REPO"
