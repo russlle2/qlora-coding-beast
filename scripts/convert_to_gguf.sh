@@ -77,51 +77,67 @@ else
   echo "[gguf] imatrix already exists, skipping"
 fi
 
-# -------- 4. quantize to 4 target levels --------
-quantize() {
+# -------- 4. quantize → upload → delete (disk-safe; pod has 150GB) --------
+# 30B model: BF16 ~62GB + F16 GGUF ~62GB + 4 quants (~95GB) = 219GB. Won't fit.
+# Strategy: build one quant at a time, upload it, delete it before next.
+
+DELETE_BF16_AFTER_F16="${DELETE_BF16_AFTER_F16:-1}"
+
+if [[ "$DELETE_BF16_AFTER_F16" == "1" ]] && [[ -f "$F16_GGUF" ]]; then
+  echo "[gguf] F16 GGUF exists; freeing BF16 safetensors ($MERGED_DIR)..."
+  rm -rf "$MERGED_DIR"
+fi
+
+create_repo_py() {
+python - <<PY
+import os
+from huggingface_hub import HfApi, create_repo
+api = HfApi(token=os.environ["HF_TOKEN"])
+create_repo("$HUB_REPO", private=True, exist_ok=True, repo_type="model", token=os.environ["HF_TOKEN"])
+PY
+}
+create_repo_py
+
+upload_file_py() {
+  local fpath="$1"
+  local fname
+  fname="$(basename "$fpath")"
+python - <<PY
+import os
+from huggingface_hub import HfApi
+api = HfApi(token=os.environ["HF_TOKEN"])
+api.upload_file(
+    path_or_fileobj="$fpath",
+    path_in_repo="$fname",
+    repo_id="$HUB_REPO",
+    repo_type="model",
+)
+print(f"uploaded {os.path.basename('$fpath')}")
+PY
+}
+
+quantize_upload_delete() {
   local qtype="$1"
   local out="$GGUF_OUT/${MODEL_NAME}-${qtype}.gguf"
-  if [[ -f "$out" ]]; then
-    echo "[gguf] $qtype already exists, skipping"
-    return
-  fi
-  echo "[gguf] quantize -> $qtype"
+  echo "[gguf] === $qtype ==="
   "$LLAMA_CPP_DIR/build/bin/llama-quantize" \
     --imatrix "$IMATRIX_FILE" \
     "$F16_GGUF" \
     "$out" \
     "$qtype"
+  echo "[gguf] uploading $out -> $HUB_REPO"
+  upload_file_py "$out"
+  echo "[gguf] freeing $out"
+  rm -f "$out"
 }
 
-quantize Q4_K_M
-quantize Q5_K_M
-quantize Q6_K
-quantize Q8_0
+quantize_upload_delete Q4_K_M
+quantize_upload_delete Q5_K_M
+quantize_upload_delete Q6_K
+quantize_upload_delete Q8_0
 
-echo "[gguf] all quants complete:"
-ls -lh "$GGUF_OUT"/*.gguf
-
-# -------- 5. push all quants to HF Hub --------
-echo "[gguf] pushing to $HUB_REPO..."
-python - <<PY
-import os
-from huggingface_hub import HfApi, create_repo
-
-repo_id = "$HUB_REPO"
-api = HfApi(token=os.environ["HF_TOKEN"])
-create_repo(repo_id, private=True, exist_ok=True, repo_type="model", token=os.environ["HF_TOKEN"])
-
-# Upload each GGUF as a separate file
-for fname in os.listdir("$GGUF_OUT"):
-    if fname.endswith(".gguf"):
-        print(f"uploading {fname}...")
-        api.upload_file(
-            path_or_fileobj=f"$GGUF_OUT/{fname}",
-            path_in_repo=fname,
-            repo_id=repo_id,
-            repo_type="model",
-        )
-print("all uploads complete")
-PY
+echo "[gguf] uploading imatrix + F16..."
+upload_file_py "$IMATRIX_FILE" || true
+upload_file_py "$F16_GGUF" || true
 
 echo "[gguf] DONE. Models at https://huggingface.co/$HUB_REPO"
