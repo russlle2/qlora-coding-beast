@@ -142,10 +142,11 @@ def build_startup_script(phase: int, repo_url: str) -> str:
     return textwrap.dedent(
         f"""\
         (
-          set -euo pipefail
+          set -eo pipefail
           echo "[autostart] $(date -u +%FT%TZ) phase {phase} starting"
-          export HF_TOKEN="${{HF_TOKEN}}"
-          export RUNPOD_API_KEY="${{RUNPOD_API_KEY}}"
+          # HF_TOKEN and RUNPOD_API_KEY are already in the container env from RunPod.
+          # Do NOT write export HF_TOKEN="${{HF_TOKEN}}" here — RunPod expands that into
+          # export HF_TOKEN=$hf_... which bash treats as an unbound variable (set -u).
           export AUTO_TERMINATE_POD=1
           export REPO_URL="{repo_url}"
           cd /workspace
