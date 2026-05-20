@@ -15,6 +15,7 @@ set -euo pipefail
 
 WORKDIR="/workspace/qlora-coding-beast"
 GGUF_REPO="${GGUF_REPO:-russlle2/qwen3-coder-30b-a3b-merged-gguf}"
+REPO_URL="${REPO_URL:-https://github.com/russlle2/qlora-coding-beast.git}"
 
 if [[ -z "${HF_TOKEN:-}" ]]; then
   echo "[phase1] ERROR: export HF_TOKEN first (Hugging Face write token)."
@@ -25,11 +26,6 @@ echo "[phase1] $(date -u +%FT%TZ) starting"
 
 cd /workspace
 if [[ ! -d "$WORKDIR/.git" ]]; then
-  if [[ -z "${REPO_URL:-}" ]]; then
-    echo "[phase1] ERROR: $WORKDIR missing and REPO_URL is not set."
-    echo "[phase1] Either: git clone your repo to $WORKDIR, or: export REPO_URL=https://github.com/USER/qlora-coding-beast.git"
-    exit 1
-  fi
   echo "[phase1] cloning $REPO_URL -> $WORKDIR"
   git clone "$REPO_URL" qlora-coding-beast
 else
