@@ -54,9 +54,13 @@ def gql(api_key: str, query: str, variables: dict | None = None) -> dict:
     if variables:
         payload["variables"] = variables
     req = urllib.request.Request(
-        f"{GRAPHQL_URL}?api_key={api_key}",
+        GRAPHQL_URL,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+            "User-Agent": "qlora-coding-beast/1.0 (RunPod GraphQL client)",
+        },
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=120) as resp:
