@@ -17,3 +17,6 @@ mistral-common==1.11.0
 datasets==4.5.0
 numpy>=2.2.6,<2.4
 pillow>=11.0.0,<12.0.0
+wandb
+mlflow
+comet_ml
