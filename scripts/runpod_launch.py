@@ -91,7 +91,12 @@ def list_gpu_types(api_key: str) -> list[dict]:
 
 def pick_gpu_candidates(gpus: list[dict], prefer: str | None) -> list[tuple[str, str]]:
     """Return (gpu_type_id, display_name) in priority order for fallback deploy."""
-    community = [g for g in gpus if g.get("communityCloud")]
+    # 32K QLoRA on Qwen3-Coder-30B-A3B needs ~60-80GB+ VRAM; skip 40GB cards.
+    min_vram_gb = 70
+    community = [
+        g for g in gpus
+        if g.get("communityCloud") and (g.get("memoryInGb") or 0) >= min_vram_gb
+    ]
 
     if prefer:
         matched = [
@@ -120,7 +125,7 @@ def pick_gpu_candidates(gpus: list[dict], prefer: str | None) -> list[tuple[str,
 
     for g in community:
         dn = (g.get("displayName") or "").lower()
-        if "h200" in dn or "h100" in dn or "a100" in dn:
+        if "h200" in dn or "h100" in dn or ("a100" in dn and "80" in dn):
             add(g)
 
     if not ordered:
