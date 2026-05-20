@@ -98,7 +98,7 @@ def main() -> int:
     if not pod_id:
         print(
             "[shutdown] RUNPOD_POD_ID not set. Copy pod id from browser URL "
-            "(https://www.runpod.io/console/pods/YOUR_ID) and export RUNPOD_POD_ID=YOUR_ID",
+            "(https://console.runpod.io/pods?id=YOUR_ID) and export RUNPOD_POD_ID=YOUR_ID",
             file=sys.stderr,
         )
         return 1

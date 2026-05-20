@@ -1,33 +1,46 @@
-# qlora-coding-beast — compressed status (2026-05-20)
+# qlora-coding-beast — RunPod status
 
-## Goal
-Phase 1 QLoRA on `Qwen/Qwen3-Coder-30B-A3B-Instruct` → GGUF on HF → Legion smoke test.
+## Active pod (use this one)
 
-## What failed (all before real training)
-| # | Bug | Status |
-|---|-----|--------|
-| 1 | Wrong Docker tag `2.5.1-py3.11...` | Fixed → `2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04` |
-| 2 | pip resolution-too-deep | Fixed → staged installs |
-| 3 | `export HF_TOKEN="${HF_TOKEN}"` in dockerArgs → unbound variable | Fixed → don't re-export |
-| 4 | `peft==0.18.2` doesn't exist | Fixed → `0.18.1` |
-| 5 | `podTerminate { id }` GraphQL invalid | Fixed → no subfields + podStop fallback |
-| 6 | Bootstrap **skipped** pip → torch/torchvision mismatch | Fixed → always `--force-reinstall` torch stack |
-| 7 | Wrong `RUNPOD_POD_ID` → auto-stop failed, idle billing | Fix → set `RUNPOD_POD_ID` from console URL |
+| | |
+|--|--|
+| **Pod ID** | `k9ckjm5ybx0bhc` |
+| **Console** | https://console.runpod.io/pods?id=k9ckjm5ybx0bhc |
 
-## HF repos (no training artifacts yet)
-- `russlle2/qwen3-coder-30b-a3b-adapter-uncensored` — empty
-- `russlle2/qwen3-coder-30b-a3b-merged-gguf` — empty
+`sa30ji6hq2b3ky` is **terminated** — do not use.
 
-## One command on pod (after `git pull`)
+## On the pod terminal (after Connect)
+
+Autostart runs bootstrap (~20–40 min first time). Watch:
+
 ```bash
-export HF_TOKEN='...' RUNPOD_API_KEY='...' RUNPOD_POD_ID='id-from-url' AUTO_TERMINATE_POD=1
-cd /workspace/qlora-coding-beast && git pull
-nohup bash scripts/runpod_go.sh >> /workspace/run.log 2>&1 &
+tail -f /workspace/runpod_autostart.log
 tail -f /workspace/run.log
 ```
 
-## Or from Windows
+When bootstrap finishes (or if it errors), run training:
+
+```bash
+cd /workspace/qlora-coding-beast
+git pull
+bash scripts/ensure_axolotl_train_deps.sh
+tmux new-session -d -s train 'bash scripts/train_phase1_now.sh'
+tail -f /workspace/train_phase1_now.log
+```
+
+Training = `loss:` lines + `nvidia-smi` GPU memory **> 0**.
+
+## Monitor from Windows
+
 ```powershell
 cd c:\Users\chris\.cursor\projects\qlora-coding-beast
+python scripts/runpod_monitor.py --pod-id k9ckjm5ybx0bhc --watch 120
+```
+
+## Launch new pod
+
+```powershell
 python scripts/runpod_launch.py --phase 1
 ```
+
+Console link format: `https://console.runpod.io/pods?id=POD_ID`

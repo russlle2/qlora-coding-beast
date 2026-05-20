@@ -17,4 +17,5 @@ source "${ROOT}/scripts/runpod_shutdown_helpers.sh"
 resolve_runpod_pod_id || echo "[go] WARN: RUNPOD_POD_ID unknown — auto-stop may fail until set from console URL"
 
 bash scripts/runpod_bootstrap.sh
-bash scripts/phase1_train_only.sh
+# bootstrap may fail mid-way; train script reinstalls stack if needed
+bash scripts/train_phase1_now.sh

@@ -315,7 +315,7 @@ def main() -> int:
     pod_file.write_text(pod_id + "\n", encoding="utf-8")
     print(f"\nPod created on {display}: {pod_id}")
     print(f"Saved locally: {pod_file}")
-    print(f"Console: https://www.runpod.io/console/pods/{pod_id}")
+    print(f"Console: https://console.runpod.io/pods?id={pod_id}")
     print("\nMonitor:")
     print("  tail -f /workspace/runpod_autostart.log")
     print("  tail -f /workspace/outputs/train_phase1.log   # phase 1")

@@ -19,6 +19,7 @@ resolve_runpod_pod_id || true
 trap phase1_exit_trap EXIT
 
 bash scripts/ensure_axolotl_train_deps.sh
+python scripts/patch_axolotl_torch25.py
 
 if [[ ! -f /workspace/data/uncensored_chatml.jsonl ]]; then
   python scripts/prepare_data.py --dataset uncensored --out /workspace/data/uncensored_chatml.jsonl
