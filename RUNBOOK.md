@@ -52,7 +52,7 @@ Pod runs `phase1_run_all.sh` on boot. Log: `/workspace/runpod_autostart.log`
 ### Option B — Manual (no API key)
 
 1. RunPod → **Deploy** → **Community Cloud** → **1× H200 141GB** (or H100 80GB fallback)
-2. Image: `runpod/pytorch:2.5.1-py3.11-cuda12.4.1-devel-ubuntu22.04`
+2. Image: `runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04`
 3. Container disk: **150 GB**
 4. Env: `HF_TOKEN` = your token
 5. Open **Web Terminal**, paste:

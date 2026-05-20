@@ -70,7 +70,7 @@ Or use whatever git host you prefer.
 ### 1.1 Spin up RunPod pod
 
 - GPU: **1x H200 141GB SXM**, Community Cloud, on-demand
-- Template: "PyTorch 2.5.1 CUDA 12.4" (official RunPod), or `winglian/axolotl-cloud:main-latest`
+- Image: `runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04` (or `winglian/axolotl-cloud:main-latest`)
 - Container disk: **150 GB**
 - Volume mount: none (Community Cloud doesn't support it; we push checkpoints to HF Hub)
 - Env vars to set in the pod config:

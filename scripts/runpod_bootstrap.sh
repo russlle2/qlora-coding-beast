@@ -2,7 +2,7 @@
 # runpod_bootstrap.sh
 # Run once per fresh RunPod pod. Idempotent - safe to re-run.
 #
-# Expected base image: runpod/pytorch:2.5.x-py3.11-cuda12.4.x-devel-ubuntu22.04
+# Expected base image: runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 #   OR the official Axolotl image winglian/axolotl-cloud:main-latest
 #
 # Required env vars before running:

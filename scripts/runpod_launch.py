@@ -25,7 +25,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 GRAPHQL_URL = "https://api.runpod.io/graphql"
-DEFAULT_IMAGE = "runpod/pytorch:2.5.1-py3.11-cuda12.4.1-devel-ubuntu22.04"
+# Verified on Docker Hub (2026-05): 2.5.1-* tag does not exist; 2.4.0 + cu124.1 does.
+DEFAULT_IMAGE = "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04"
 DEFAULT_REPO = "https://github.com/russlle2/qlora-coding-beast.git"
 # Community H200 141GB — name varies; script tries a few aliases.
 GPU_CANDIDATES = [
@@ -88,27 +89,45 @@ def list_gpu_types(api_key: str) -> list[dict]:
     return data.get("gpuTypes") or []
 
 
-def pick_gpu_id(gpus: list[dict], prefer: str | None) -> str:
-    if prefer:
-        for g in gpus:
-            if prefer.lower() in (g.get("displayName") or "").lower():
-                return g["id"]
-        raise SystemExit(f"GPU preference {prefer!r} not found. Run with --list-gpus")
+def pick_gpu_candidates(gpus: list[dict], prefer: str | None) -> list[tuple[str, str]]:
+    """Return (gpu_type_id, display_name) in priority order for fallback deploy."""
+    community = [g for g in gpus if g.get("communityCloud")]
 
-    names = [(g.get("displayName") or "").lower() for g in gpus]
+    if prefer:
+        matched = [
+            (g["id"], g.get("displayName") or g["id"])
+            for g in community
+            if prefer.lower() in (g.get("displayName") or "").lower()
+        ]
+        if not matched:
+            raise SystemExit(f"GPU preference {prefer!r} not found. Run with --list-gpus")
+        return matched
+
+    seen: set[str] = set()
+    ordered: list[tuple[str, str]] = []
+
+    def add(g: dict) -> None:
+        gid = g["id"]
+        if gid not in seen:
+            seen.add(gid)
+            ordered.append((gid, g.get("displayName") or gid))
+
     for cand in GPU_CANDIDATES:
         cl = cand.lower()
-        for g in gpus:
-            if cl in (g.get("displayName") or "").lower() and g.get("communityCloud"):
-                return g["id"]
-    # fallback: any community H100/H200
-    for g in gpus:
+        for g in community:
+            if cl in (g.get("displayName") or "").lower():
+                add(g)
+
+    for g in community:
         dn = (g.get("displayName") or "").lower()
-        if g.get("communityCloud") and ("h200" in dn or "h100" in dn):
-            return g["id"]
-    raise SystemExit(
-        "No suitable H200/H100 Community GPU found. Run: python scripts/runpod_launch.py --list-gpus"
-    )
+        if "h200" in dn or "h100" in dn or "a100" in dn:
+            add(g)
+
+    if not ordered:
+        raise SystemExit(
+            "No suitable Community GPUs found. Run: python scripts/runpod_launch.py --list-gpus"
+        )
+    return ordered
 
 
 def build_startup_script(phase: int, repo_url: str) -> str:
@@ -181,6 +200,32 @@ def create_pod(
     return pod["id"]
 
 
+def deploy_with_gpu_fallback(
+    api_key: str,
+    candidates: list[tuple[str, str]],
+    **kwargs,
+) -> tuple[str, str]:
+    last_err: str | None = None
+    for gpu_id, display in candidates:
+        print(f"[launch] trying GPU: {display} ({gpu_id})")
+        try:
+            pod_id = create_pod(api_key, gpu_type_id=gpu_id, **kwargs)
+            return pod_id, display
+        except RuntimeError as e:
+            err = str(e)
+            last_err = err
+            if "SUPPLY_CONSTRAINT" in err or "no longer any instances" in err.lower():
+                print(f"[launch] no capacity for {display}, trying next...")
+                continue
+            raise
+    raise SystemExit(
+        "No Community GPU capacity for any candidate type right now.\n"
+        f"Last error: {last_err}\n"
+        "Retry in a few minutes or deploy manually in RunPod console with image:\n"
+        f"  {DEFAULT_IMAGE}"
+    )
+
+
 def main() -> int:
     load_dotenv()
     p = argparse.ArgumentParser(description="Launch RunPod pod for qlora-coding-beast")
@@ -221,13 +266,12 @@ def main() -> int:
         return 1
 
     gpus = list_gpu_types(api_key)
-    gpu_id = pick_gpu_id(gpus, args.gpu)
-    display = next(g["displayName"] for g in gpus if g["id"] == gpu_id)
+    candidates = pick_gpu_candidates(gpus, args.gpu)
     startup = build_startup_script(args.phase, args.repo_url)
     name = f"qlora-phase{args.phase}-{os.environ.get('USER', 'run')}"[:40]
 
-    print(f"GPU: {display} ({gpu_id})")
     print(f"Image: {args.image}")
+    print(f"GPU candidates: {len(candidates)} (first: {candidates[0][1]})")
     print(f"Disk: {args.disk_gb} GB")
     print(f"Phase: {args.phase} -> scripts/phase{args.phase}_run_all.sh")
     print(f"Log on pod: /workspace/runpod_autostart.log")
@@ -238,10 +282,10 @@ def main() -> int:
         return 0
 
     try:
-        pod_id = create_pod(
+        pod_id, display = deploy_with_gpu_fallback(
             api_key,
+            candidates,
             name=name,
-            gpu_type_id=gpu_id,
             gpu_count=args.gpu_count,
             disk_gb=args.disk_gb,
             image=args.image,
@@ -258,7 +302,7 @@ def main() -> int:
 
     pod_file = ROOT / ".runpod_pod_id"
     pod_file.write_text(pod_id + "\n", encoding="utf-8")
-    print(f"\nPod created: {pod_id}")
+    print(f"\nPod created on {display}: {pod_id}")
     print(f"Saved locally: {pod_file}")
     print(f"Console: https://www.runpod.io/console/pods/{pod_id}")
     print("\nMonitor:")
