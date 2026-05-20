@@ -65,8 +65,8 @@ pip install -q --no-cache-dir -c "${TORCH_C}" "flash-attn>=2.7.0,<3" --no-build-
 }
 pip install -q --no-cache-dir -c "${TORCH_C}" -r "${ROOT}/requirements-extras.txt" || true
 
-echo "[bootstrap] re-pin torch stack after all pip installs..."
-bash "${ROOT}/scripts/fix_torch_stack.sh"
+echo "[bootstrap] axolotl train import deps + torch re-pin..."
+bash "${ROOT}/scripts/ensure_axolotl_train_deps.sh"
 
 echo "[bootstrap] Hugging Face login..."
 python - <<PY

@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
-# Minimal axolotl imports for `axolotl train` (no torch upgrade).
+# Install axolotl CLI import chain deps (avoids one-by-one ModuleNotFoundError).
 set -eo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TORCH_C="${ROOT}/constraints-torch-cu124.txt"
-echo "[deps] axolotl train import deps..."
-pip install -q --no-cache-dir -c "${TORCH_C}" \
-  "posthog==6.7.11" \
-  "immutabledict==4.2.0" \
-  "antlr4-python3-runtime==4.13.2" \
-  "datasets==4.5.0" \
-  "pillow>=11.0.0,<12.0.0"
-python -c "import posthog; import axolotl; print('[deps] posthog + axolotl import OK')"
+
+echo "[deps] pinning torch stack before axolotl extras..."
+bash "${ROOT}/scripts/fix_torch_stack.sh"
+
+echo "[deps] axolotl train import packages..."
+pip install -q --no-cache-dir -c "${TORCH_C}" -r "${ROOT}/requirements-axolotl-train.txt"
+
+echo "[deps] verifying axolotl CLI import chain..."
+python - <<'PY'
+from axolotl.cli.main import main  # noqa: F401
+from axolotl.loaders.model import ModelLoader  # noqa: F401
+print("[deps] axolotl CLI + ModelLoader import OK")
+PY
