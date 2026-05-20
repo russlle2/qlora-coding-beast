@@ -49,8 +49,17 @@ def resolve_pod_id() -> str | None:
     return None
 
 
+def stop_pod(api_key: str, pod_id: str) -> None:
+    mutation = """
+    mutation Stop($input: PodStopInput!) {
+      podStop(input: $input) { id desiredStatus }
+    }
+    """
+    data = gql(api_key, mutation, {"input": {"podId": pod_id}})
+    print(f"[shutdown] podStop OK: {data.get('podStop')}")
+
+
 def terminate_pod(api_key: str, pod_id: str) -> None:
-    # podTerminate stops billing for on-demand Community pods
     mutation = """
     mutation Terminate($input: PodTerminateInput!) {
       podTerminate(input: $input)
@@ -88,12 +97,13 @@ def main() -> int:
 
     try:
         terminate_pod(api_key, pod_id)
-    except urllib.error.HTTPError as e:
-        print(f"[shutdown] HTTP error: {e.read().decode()}", file=sys.stderr)
-        return 1
     except Exception as e:
-        print(f"[shutdown] failed: {e}", file=sys.stderr)
-        return 1
+        print(f"[shutdown] terminate failed ({e}), trying podStop...", file=sys.stderr)
+        try:
+            stop_pod(api_key, pod_id)
+        except Exception as e2:
+            print(f"[shutdown] podStop also failed: {e2}", file=sys.stderr)
+            return 1
 
     print("[shutdown] Pod terminate requested. Billing should stop shortly.")
     return 0
