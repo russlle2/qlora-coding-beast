@@ -96,7 +96,11 @@ def main() -> int:
         print("[shutdown] RUNPOD_API_KEY not set; cannot auto-terminate", file=sys.stderr)
         return 1
     if not pod_id:
-        print("[shutdown] RUNPOD_POD_ID not set; terminate manually in RunPod console", file=sys.stderr)
+        print(
+            "[shutdown] RUNPOD_POD_ID not set. Copy pod id from browser URL "
+            "(https://www.runpod.io/console/pods/YOUR_ID) and export RUNPOD_POD_ID=YOUR_ID",
+            file=sys.stderr,
+        )
         return 1
 
     if args.dry_run:

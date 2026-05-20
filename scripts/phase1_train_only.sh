@@ -15,6 +15,8 @@ trap 'ec=$?; shutdown_pod "phase1_failed_${ec}"' EXIT
 GGUF_REPO="${GGUF_REPO:-russlle2/qwen3-coder-30b-a3b-merged-gguf}"
 export HF_TOKEN
 
+bash scripts/fix_torch_stack.sh
+
 if [[ ! -f /workspace/data/uncensored_chatml.jsonl ]]; then
   python scripts/prepare_data.py --dataset uncensored --out /workspace/data/uncensored_chatml.jsonl
 else
