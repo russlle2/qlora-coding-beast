@@ -8,6 +8,8 @@ echo "[autostart] $(date -u +%FT%TZ) pid=$$"
 # RunPod injects secrets; never re-export HF_TOKEN="${HF_TOKEN}" (breaks set -u).
 export AUTO_TERMINATE_POD="${AUTO_TERMINATE_POD:-1}"
 export AUTO_TERMINATE_ON_FAILURE="${AUTO_TERMINATE_ON_FAILURE:-0}"
+export AXOLOTL_DO_NOT_TRACK=1
+export DO_NOT_TRACK=1
 export REPO_URL="${REPO_URL:-https://github.com/russlle2/qlora-coding-beast.git}"
 
 if [[ -z "${RUNPOD_POD_ID:-}" ]] && [[ -f /etc/runpod/pod_id ]]; then

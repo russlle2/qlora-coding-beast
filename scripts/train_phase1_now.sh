@@ -6,6 +6,8 @@ set -eo pipefail
 export AUTO_TERMINATE_POD=0
 export AUTO_TERMINATE_ON_FAILURE=0
 export AUTO_TERMINATE_ON_SUCCESS="${AUTO_TERMINATE_ON_SUCCESS:-1}"
+export AXOLOTL_DO_NOT_TRACK=1
+export DO_NOT_TRACK=1
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"

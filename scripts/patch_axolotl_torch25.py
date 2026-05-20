@@ -1,61 +1,71 @@
 #!/usr/bin/env python3
-"""Patch axolotl 0.16.1 enums for torch 2.5.x (no torch.int4). Safe for QLoRA train."""
+"""Patch axolotl 0.16.1 for torch 2.5.x and ship missing data files."""
 from __future__ import annotations
 
+import shutil
 import sys
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
-def find_enums_file() -> Path:
+
+def find_axolotl_dir() -> Path:
     import axolotl
 
-    p = Path(axolotl.__file__).resolve().parent / "utils" / "schemas" / "enums.py"
+    return Path(axolotl.__file__).resolve().parent
+
+
+def patch_enums(axolotl_dir: Path) -> None:
+    p = axolotl_dir / "utils" / "schemas" / "enums.py"
     if not p.exists():
-        raise SystemExit(f"enums.py not found at {p}")
-    return p
-
-
-def patch(text: str) -> str:
-    if "getattr(torch, \"int4\"" in text:
-        print("[patch] already patched")
-        return text
+        print(f"[patch] enums.py not found at {p}; skipping")
+        return
+    text = p.read_text(encoding="utf-8")
+    if 'getattr(torch, "int4"' in text or 'getattr(torch, "int1"' in text:
+        print("[patch] enums.py already patched")
+        return
 
     out: list[str] = []
     for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("#") or "getattr(torch," in line:
-            out.append(line)
-            continue
-        if " = torch." in line and not stripped.startswith("class "):
-            lhs, _, rhs = stripped.partition(" = torch.")
+        s = line.strip()
+        if " = torch." in line and not s.startswith("class ") and "getattr" not in line:
+            lhs, _, rhs = s.partition(" = torch.")
             indent = line[: len(line) - len(line.lstrip())]
             dtype = rhs.strip()
-            fallback = "torch.int8" if dtype.startswith("int") else "torch.float32"
-            out.append(
-                f'{indent}{lhs} = getattr(torch, "{dtype}", {fallback})'
-            )
+            fb = "torch.int8" if dtype.startswith("int") else "torch.float32"
+            out.append(f'{indent}{lhs} = getattr(torch, "{dtype}", {fb})')
         else:
             out.append(line)
-    return "\n".join(out) + "\n"
+    p.write_text("\n".join(out) + "\n", encoding="utf-8")
+    print(f"[patch] enums.py patched at {p}")
+
+
+def install_whitelist(axolotl_dir: Path) -> None:
+    src = REPO_ROOT / "scripts" / "axolotl_whitelist.yaml"
+    dst = axolotl_dir / "telemetry" / "whitelist.yaml"
+    if not src.exists():
+        print(f"[patch] {src} missing; cannot install whitelist")
+        return
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(src, dst)
+    print(f"[patch] whitelist.yaml installed at {dst}")
 
 
 def main() -> int:
-    path = find_enums_file()
-    original = path.read_text(encoding="utf-8")
-    patched = patch(original)
-    if patched != original:
-        path.write_text(patched, encoding="utf-8")
-        print(f"[patch] updated {path}")
-    python = sys.executable
+    axolotl_dir = find_axolotl_dir()
+    patch_enums(axolotl_dir)
+    install_whitelist(axolotl_dir)
+
+    import os
+    os.environ.setdefault("AXOLOTL_DO_NOT_TRACK", "1")
+    os.environ.setdefault("DO_NOT_TRACK", "1")
+
     import subprocess
 
     r = subprocess.run(
-        [
-            python,
-            "-c",
-            "from axolotl.cli.main import main; print('AXOLOTL CLI OK')",
-        ],
+        [sys.executable, "-c", "from axolotl.cli.train import *; print('AXOLOTL TRAIN OK')"],
         check=False,
+        env={**os.environ},
     )
     return r.returncode
 
