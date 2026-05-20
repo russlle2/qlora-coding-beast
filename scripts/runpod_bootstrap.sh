@@ -44,7 +44,10 @@ PY
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-echo "[bootstrap] stage 1/4: core ML stack (pinned)..."
+echo "[bootstrap] stage 1a/4: transformers (installs huggingface_hub>=1.5, tokenizers 0.22.x)..."
+pip install -q --no-cache-dir "transformers==5.4.0"
+
+echo "[bootstrap] stage 1b/4: remaining core ML stack..."
 pip install -q --no-cache-dir -r "${ROOT}/requirements-core-ml.txt"
 
 echo "[bootstrap] stage 2/4: extras..."

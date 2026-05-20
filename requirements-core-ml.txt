@@ -1,15 +1,10 @@
-# Pinned stack for Qwen3-Coder MoE QLoRA + Axolotl (install as one stage, no torch line)
-transformers==5.4.0
+# Installed AFTER transformers==5.4.0 (see runpod_bootstrap.sh stage 1a).
+# Do not pin huggingface_hub / tokenizers / safetensors here — transformers 5.4 pulls compatible versions.
 accelerate==1.4.0
 peft==0.15.2
 bitsandbytes==0.45.5
 datasets==3.4.1
-huggingface_hub==0.29.3
-sentencepiece==0.2.0
-protobuf==5.29.4
 trl==0.15.2
-safetensors==0.5.3
-tokenizers==0.21.1
 numpy==1.26.4
 pyyaml==6.0.2
 requests==2.32.3
