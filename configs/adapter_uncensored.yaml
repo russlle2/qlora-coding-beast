@@ -20,7 +20,7 @@ quantize_moe_experts: true
 adapter: qlora
 lora_r: 32
 lora_alpha: 16
-lora_dropout: 0.05
+lora_dropout: 0.0
 lora_target_modules:
   - q_proj
   - k_proj
@@ -30,12 +30,12 @@ lora_target_parameters:
   - mlp.experts.gate_up_proj
   - mlp.experts.down_proj
 
-attn_implementation: flash_attention_2
+attn_implementation: sdpa
 gradient_checkpointing: true
 activation_offloading: true
 sample_packing: true
 pad_to_sequence_len: true
-sequence_len: 32768
+sequence_len: 8192
 
 micro_batch_size: 1
 gradient_accumulation_steps: 16
