@@ -19,6 +19,7 @@ else
 fi
 # Clear stale prepared cache if config changed
 rm -rf /workspace/data/prepared_uncensored
+bash scripts/ensure_axolotl_train_deps.sh
 axolotl train configs/adapter_uncensored.yaml 2>&1 | tee /workspace/outputs/train_phase1.log
 python scripts/merge_adapters.py --mode phase1 --out /workspace/outputs/merged_phase1_bf16
 export MERGED_DIR=/workspace/outputs/merged_phase1_bf16 GGUF_OUT=/workspace/outputs/gguf_phase1 HUB_REPO="$GGUF_REPO"

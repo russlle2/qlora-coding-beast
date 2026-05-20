@@ -11,6 +11,9 @@ kernels==0.12.2
 hf_transfer
 hf_xet==1.3.2
 trackio>=0.16.1
+posthog==6.7.11
+immutabledict==4.2.0
+antlr4-python3-runtime==4.13.2
 # axolotl-contribs-* installed separately with --no-deps in runpod_bootstrap.sh
 # (their metadata wants torch>=2.7.1 and breaks the 2.5.1 stack)
 typing-extensions>=4.15.0
