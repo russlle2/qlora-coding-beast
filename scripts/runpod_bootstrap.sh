@@ -25,9 +25,10 @@ echo "[bootstrap] pip tooling..."
 pip install -q --upgrade "pip==24.3.1" "setuptools==75.8.2" "wheel" "ninja"
 
 # Always install — do NOT skip when axolotl imports but torch/torchvision are mismatched.
-echo "[bootstrap] stage 1/5: PyTorch 2.5.1 + matching torchvision/torchaudio (cu124)..."
+TORCH_C="${ROOT}/constraints-torch-cu124.txt"
+echo "[bootstrap] stage 1/5: PyTorch 2.5.1 + torchvision 0.20.1 (cu124, pinned)..."
 pip install -q --no-cache-dir --force-reinstall \
-  torch==2.5.1 torchvision torchaudio \
+  torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 \
   --index-url https://download.pytorch.org/whl/cu124
 
 python - <<'PY'
@@ -37,7 +38,7 @@ assert torch.cuda.is_available()
 PY
 
 echo "[bootstrap] stage 2/5: axolotl 0.16.1 aligned ML stack..."
-pip install -q --no-cache-dir \
+pip install -q --no-cache-dir -c "${TORCH_C}" \
   "transformers==5.5.0" \
   "accelerate==1.13.0" \
   "peft==0.18.1" \
@@ -49,17 +50,23 @@ pip install -q --no-cache-dir \
   "numpy>=2.2.6" \
   "huggingface_hub>=1.1.7"
 
-echo "[bootstrap] stage 3/5: axolotl runtime helpers..."
-pip install -q --no-cache-dir -r "${ROOT}/requirements-axolotl-runtime.txt"
+echo "[bootstrap] stage 3/5: axolotl runtime helpers (torch constrained)..."
+pip install -q --no-cache-dir -c "${TORCH_C}" -r "${ROOT}/requirements-axolotl-runtime.txt"
+# contribs declare torch>=2.7.1 in metadata — install without pulling a newer torch
+pip install -q --no-cache-dir --no-deps \
+  "axolotl-contribs-lgpl==0.0.7" "axolotl-contribs-mit==0.0.6" || true
 
 echo "[bootstrap] stage 4/5: axolotl package (--no-deps; stack pinned above)..."
 pip install -q --no-cache-dir --no-build-isolation --no-deps "axolotl==0.16.1"
 
 echo "[bootstrap] stage 5/5: flash-attn + project extras..."
-pip install -q --no-cache-dir "flash-attn>=2.7.0,<3" --no-build-isolation || {
+pip install -q --no-cache-dir -c "${TORCH_C}" "flash-attn>=2.7.0,<3" --no-build-isolation || {
   echo "[bootstrap] WARN: flash-attn build failed; training may still run without FA"
 }
-pip install -q --no-cache-dir -r "${ROOT}/requirements-extras.txt" || true
+pip install -q --no-cache-dir -c "${TORCH_C}" -r "${ROOT}/requirements-extras.txt" || true
+
+echo "[bootstrap] re-pin torch stack after all pip installs..."
+bash "${ROOT}/scripts/fix_torch_stack.sh"
 
 echo "[bootstrap] Hugging Face login..."
 python - <<PY
