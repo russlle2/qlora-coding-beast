@@ -136,7 +136,7 @@ def pick_gpu_candidates(gpus: list[dict], prefer: str | None) -> list[tuple[str,
 
 
 def build_startup_script(phase: int, repo_url: str) -> str:
-    runner = "overnight_phase1.sh" if phase == 1 else "phase2_run_all.sh"
+    runner = "runpod_go.sh" if phase == 1 else "phase2_run_all.sh"
     # Background job + sleep infinity: keeps container/web terminal alive if bootstrap fails.
     # Training still auto-terminates pod via runpod_shutdown.py when pipeline exits.
     return textwrap.dedent(

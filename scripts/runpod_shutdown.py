@@ -16,6 +16,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 GRAPHQL_URL = "https://api.runpod.io/graphql"
 
@@ -46,6 +47,13 @@ def resolve_pod_id() -> str | None:
         val = os.environ.get(key, "").strip()
         if val:
             return val
+    for path in ("/etc/runpod/pod_id", "/runpod/pod_id"):
+        try:
+            v = Path(path).read_text(encoding="utf-8").strip()
+            if v:
+                return v
+        except OSError:
+            pass
     return None
 
 
