@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+"""
+Terminate the current RunPod pod to stop GPU billing.
+
+Reads RUNPOD_API_KEY and RUNPOD_POD_ID from the environment (RunPod injects POD_ID on pods).
+Called automatically at the end of phase1_run_all.sh / phase2_run_all.sh when AUTO_TERMINATE_POD=1.
+
+Usage (on pod):
+  python scripts/runpod_shutdown.py --reason phase1_complete
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+
+GRAPHQL_URL = "https://api.runpod.io/graphql"
+
+
+def gql(api_key: str, query: str, variables: dict | None = None) -> dict:
+    payload: dict = {"query": query}
+    if variables:
+        payload["variables"] = variables
+    req = urllib.request.Request(
+        f"{GRAPHQL_URL}?api_key={api_key}",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        out = json.loads(resp.read().decode())
+    if out.get("errors"):
+        raise RuntimeError(json.dumps(out["errors"], indent=2))
+    return out.get("data") or {}
+
+
+def resolve_pod_id() -> str | None:
+    for key in ("RUNPOD_POD_ID", "RUNPOD_POD_HOST_ID"):
+        val = os.environ.get(key, "").strip()
+        if val:
+            return val
+    return None
+
+
+def terminate_pod(api_key: str, pod_id: str) -> None:
+    # podTerminate stops billing for on-demand Community pods
+    mutation = """
+    mutation Terminate($input: PodTerminateInput!) {
+      podTerminate(input: $input) {
+        id
+        desiredStatus
+      }
+    }
+    """
+    data = gql(api_key, mutation, {"input": {"podId": pod_id}})
+    result = data.get("podTerminate") or {}
+    print(f"[shutdown] podTerminate OK: id={result.get('id')} status={result.get('desiredStatus')}")
+
+
+def main() -> int:
+    p = argparse.ArgumentParser()
+    p.add_argument("--reason", default="pipeline_complete")
+    p.add_argument("--dry-run", action="store_true")
+    args = p.parse_args()
+
+    if os.environ.get("AUTO_TERMINATE_POD", "1") not in ("1", "true", "yes"):
+        print("[shutdown] AUTO_TERMINATE_POD disabled; skipping")
+        return 0
+
+    api_key = os.environ.get("RUNPOD_API_KEY", "").strip()
+    pod_id = resolve_pod_id()
+
+    print(f"[shutdown] reason={args.reason} pod_id={pod_id or 'UNKNOWN'}")
+
+    if not api_key:
+        print("[shutdown] RUNPOD_API_KEY not set; cannot auto-terminate", file=sys.stderr)
+        return 1
+    if not pod_id:
+        print("[shutdown] RUNPOD_POD_ID not set; terminate manually in RunPod console", file=sys.stderr)
+        return 1
+
+    if args.dry_run:
+        print("[shutdown] dry-run only")
+        return 0
+
+    try:
+        terminate_pod(api_key, pod_id)
+    except urllib.error.HTTPError as e:
+        print(f"[shutdown] HTTP error: {e.read().decode()}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"[shutdown] failed: {e}", file=sys.stderr)
+        return 1
+
+    print("[shutdown] Pod terminate requested. Billing should stop shortly.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

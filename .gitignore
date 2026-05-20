@@ -21,6 +21,7 @@ env/
 
 # Secrets
 .env
+.runpod_pod_id
 .env.local
 .huggingface/
 *.key

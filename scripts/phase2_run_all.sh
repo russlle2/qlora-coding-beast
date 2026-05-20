@@ -4,6 +4,20 @@
 
 set -euo pipefail
 
+AUTO_TERMINATE_POD="${AUTO_TERMINATE_POD:-1}"
+shutdown_pod() {
+  local reason="${1:-unknown}"
+  if [[ "${AUTO_TERMINATE_POD}" == "1" ]]; then
+    echo "[phase2] requesting pod shutdown (${reason})..."
+    python scripts/runpod_shutdown.py --reason "$reason" || true
+  fi
+}
+on_error() {
+  echo "[phase2] ERROR at line $1 (exit $2)"
+  shutdown_pod "phase2_failed_line_$1"
+}
+trap 'on_error $LINENO $?' ERR
+
 WORKDIR="/workspace/qlora-coding-beast"
 GGUF_REPO="${GGUF_REPO:-russlle2/qwen3-coder-30b-a3b-uncensored-tools-coding-gguf}"
 
@@ -48,4 +62,6 @@ export GGUF_OUT=/workspace/outputs/gguf_final
 export HUB_REPO="$GGUF_REPO"
 bash scripts/convert_to_gguf.sh
 
-echo "[phase2] $(date -u +%FT%TZ) done. Tear down pod."
+PIPELINE_PHASE=phase2_coding python scripts/ensure_hub_checkpoint.py || true
+echo "[phase2] $(date -u +%FT%TZ) done."
+shutdown_pod "phase2_complete"

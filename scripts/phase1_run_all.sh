@@ -13,6 +13,21 @@
 
 set -euo pipefail
 
+# Auto-terminate pod when pipeline exits (success or failure) so GPU billing stops while you sleep.
+AUTO_TERMINATE_POD="${AUTO_TERMINATE_POD:-1}"
+shutdown_pod() {
+  local reason="${1:-unknown}"
+  if [[ "${AUTO_TERMINATE_POD}" == "1" ]]; then
+    echo "[phase1] requesting pod shutdown (${reason})..."
+    python scripts/runpod_shutdown.py --reason "$reason" || true
+  fi
+}
+on_error() {
+  echo "[phase1] ERROR at line $1 (exit $2)"
+  shutdown_pod "phase1_failed_line_$1"
+}
+trap 'on_error $LINENO $?' ERR
+
 WORKDIR="/workspace/qlora-coding-beast"
 GGUF_REPO="${GGUF_REPO:-russlle2/qwen3-coder-30b-a3b-merged-gguf}"
 REPO_URL="${REPO_URL:-https://github.com/russlle2/qlora-coding-beast.git}"
@@ -57,4 +72,8 @@ bash scripts/convert_to_gguf.sh
 echo "[phase1] upload training report to adapter repo..."
 python scripts/push_phase1_report_to_hub.py
 
-echo "[phase1] $(date -u +%FT%TZ) done. Tear down pod from RunPod console when finished."
+echo "[phase1] verifying HF checkpoints..."
+PIPELINE_PHASE=phase1 python scripts/ensure_hub_checkpoint.py || true
+
+echo "[phase1] $(date -u +%FT%TZ) done."
+shutdown_pod "phase1_complete"

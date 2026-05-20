@@ -116,6 +116,8 @@ def build_startup_script(phase: int, repo_url: str) -> str:
         exec > /workspace/runpod_autostart.log 2>&1
         echo "[autostart] $(date -u +%FT%TZ) phase {phase}"
         export HF_TOKEN="${{HF_TOKEN}}"
+        export RUNPOD_API_KEY="${{RUNPOD_API_KEY}}"
+        export AUTO_TERMINATE_POD=1
         export REPO_URL="{repo_url}"
         cd /workspace
         if [[ ! -d qlora-coding-beast/.git ]]; then
@@ -239,14 +241,21 @@ def main() -> int:
             gpu_count=args.gpu_count,
             disk_gb=args.disk_gb,
             image=args.image,
-            env={"HF_TOKEN": hf},
+            env={
+                "HF_TOKEN": hf,
+                "RUNPOD_API_KEY": api_key,
+                "AUTO_TERMINATE_POD": "1",
+            },
             startup_bash=startup,
         )
     except urllib.error.HTTPError as e:
         print(f"RunPod API HTTP error: {e.read().decode()}", file=sys.stderr)
         return 1
 
+    pod_file = ROOT / ".runpod_pod_id"
+    pod_file.write_text(pod_id + "\n", encoding="utf-8")
     print(f"\nPod created: {pod_id}")
+    print(f"Saved locally: {pod_file}")
     print(f"Console: https://www.runpod.io/console/pods/{pod_id}")
     print("\nMonitor:")
     print("  tail -f /workspace/runpod_autostart.log")
