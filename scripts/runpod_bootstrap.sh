@@ -44,7 +44,7 @@ PY
   pip install -q --no-cache-dir \
     "transformers==5.5.0" \
     "accelerate==1.13.0" \
-    "peft==0.18.2" \
+    "peft==0.18.1" \
     "bitsandbytes==0.49.1" \
     "datasets==4.5.0" \
     "trl==0.29.0" \

@@ -53,15 +53,11 @@ def terminate_pod(api_key: str, pod_id: str) -> None:
     # podTerminate stops billing for on-demand Community pods
     mutation = """
     mutation Terminate($input: PodTerminateInput!) {
-      podTerminate(input: $input) {
-        id
-        desiredStatus
-      }
+      podTerminate(input: $input)
     }
     """
     data = gql(api_key, mutation, {"input": {"podId": pod_id}})
-    result = data.get("podTerminate") or {}
-    print(f"[shutdown] podTerminate OK: id={result.get('id')} status={result.get('desiredStatus')}")
+    print(f"[shutdown] podTerminate OK: {data.get('podTerminate')}")
 
 
 def main() -> int:
