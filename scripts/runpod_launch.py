@@ -137,24 +137,27 @@ def pick_gpu_candidates(gpus: list[dict], prefer: str | None) -> list[tuple[str,
 
 def build_startup_script(phase: int, repo_url: str) -> str:
     runner = "overnight_phase1.sh" if phase == 1 else "phase2_run_all.sh"
+    # Background job + sleep infinity: keeps container/web terminal alive if bootstrap fails.
+    # Training still auto-terminates pod via runpod_shutdown.py when pipeline exits.
     return textwrap.dedent(
         f"""\
-        #!/bin/bash
-        set -euo pipefail
-        exec > /workspace/runpod_autostart.log 2>&1
-        echo "[autostart] $(date -u +%FT%TZ) phase {phase}"
-        export HF_TOKEN="${{HF_TOKEN}}"
-        export RUNPOD_API_KEY="${{RUNPOD_API_KEY}}"
-        export AUTO_TERMINATE_POD=1
-        export REPO_URL="{repo_url}"
-        cd /workspace
-        if [[ ! -d qlora-coding-beast/.git ]]; then
-          git clone "$REPO_URL" qlora-coding-beast
-        fi
-        cd qlora-coding-beast
-        git pull --ff-only || true
-        bash scripts/{runner}
-        echo "[autostart] DONE $(date -u +%FT%TZ)"
+        (
+          set -euo pipefail
+          echo "[autostart] $(date -u +%FT%TZ) phase {phase} starting"
+          export HF_TOKEN="${{HF_TOKEN}}"
+          export RUNPOD_API_KEY="${{RUNPOD_API_KEY}}"
+          export AUTO_TERMINATE_POD=1
+          export REPO_URL="{repo_url}"
+          cd /workspace
+          if [[ ! -d qlora-coding-beast/.git ]]; then
+            git clone "$REPO_URL" qlora-coding-beast
+          fi
+          cd qlora-coding-beast
+          git pull --ff-only || true
+          bash scripts/{runner}
+          echo "[autostart] $(date -u +%FT%TZ) pipeline finished"
+        ) >> /workspace/runpod_autostart.log 2>&1
+        sleep infinity
         """
     ).strip()
 
