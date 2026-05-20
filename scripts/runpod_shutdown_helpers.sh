@@ -34,12 +34,18 @@ shutdown_pod() {
 phase1_exit_trap() {
   local ec=$?
   if [[ $ec -eq 0 ]]; then
-    shutdown_pod "phase1_complete"
+    if [[ "${AUTO_TERMINATE_ON_SUCCESS:-1}" == "1" ]]; then
+      export AUTO_TERMINATE_POD=1
+      shutdown_pod "phase1_complete"
+    else
+      echo "[phase1] success — pod left running (AUTO_TERMINATE_ON_SUCCESS=0)"
+    fi
   elif [[ "${AUTO_TERMINATE_ON_FAILURE:-0}" == "1" ]]; then
+    export AUTO_TERMINATE_POD=1
     shutdown_pod "phase1_failed_exit_${ec}"
   else
-    echo "[phase1] exited with code $ec — pod LEFT RUNNING for debug/resume."
-    echo "[phase1] logs: /workspace/run.log /workspace/outputs/train_phase1.log"
-    echo "[phase1] resume: tmux attach -t qlora  OR  bash scripts/resume_train_only.sh"
+    echo "[phase1] FAILED exit=$ec — pod STAYS RUNNING (no billing stop on error)."
+    echo "[phase1] fix then rerun:  bash scripts/train_phase1_now.sh"
+    echo "[phase1] logs: /workspace/train_phase1_now.log  /workspace/outputs/train_phase1.log"
   fi
 }

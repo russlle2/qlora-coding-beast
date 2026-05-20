@@ -144,8 +144,9 @@ def build_startup_script(phase: int, repo_url: str) -> str:
         (
           set -eo pipefail
           echo "[launch] $(date -u +%FT%TZ) phase {phase}"
-          export AUTO_TERMINATE_POD=1
+          export AUTO_TERMINATE_POD=0
           export AUTO_TERMINATE_ON_FAILURE=0
+          export AUTO_TERMINATE_ON_SUCCESS=1
           export REPO_URL="{repo_url}"
           cd /workspace
           if [[ ! -d qlora-coding-beast/.git ]]; then
@@ -280,7 +281,8 @@ def main() -> int:
     print(f"Image: {args.image}")
     print(f"GPU candidates: {len(candidates)} (first: {candidates[0][1]})")
     print(f"Disk: {args.disk_gb} GB")
-    print(f"Phase: {args.phase} -> scripts/phase{args.phase}_run_all.sh")
+    runner_hint = "runpod_autostart.sh" if args.phase == 1 else f"phase{args.phase}_run_all.sh"
+    print(f"Phase: {args.phase} -> scripts/{runner_hint}")
     print(f"Log on pod: /workspace/runpod_autostart.log")
 
     if args.dry_run:
@@ -299,8 +301,9 @@ def main() -> int:
             env={
                 "HF_TOKEN": hf,
                 "RUNPOD_API_KEY": api_key,
-                "AUTO_TERMINATE_POD": "1",
+                "AUTO_TERMINATE_POD": "0",
                 "AUTO_TERMINATE_ON_FAILURE": "0",
+                "AUTO_TERMINATE_ON_SUCCESS": "1",
             },
             startup_bash=startup,
         )

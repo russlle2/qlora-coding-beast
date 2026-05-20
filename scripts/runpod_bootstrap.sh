@@ -56,8 +56,10 @@ pip install -q --no-cache-dir -c "${TORCH_C}" -r "${ROOT}/requirements-axolotl-r
 pip install -q --no-cache-dir --no-deps \
   "axolotl-contribs-lgpl==0.0.7" "axolotl-contribs-mit==0.0.6" || true
 
-echo "[bootstrap] stage 4/5: axolotl package (--no-deps; stack pinned above)..."
-pip install -q --no-cache-dir --no-build-isolation --no-deps "axolotl==0.16.1"
+echo "[bootstrap] stage 4/5: axolotl package (with deps, torch constrained)..."
+PIP_C="${ROOT}/constraints-pip.txt"
+pip install -q --no-cache-dir --no-build-isolation -c "${PIP_C}" -c "${TORCH_C}" "axolotl==0.16.1"
+pip uninstall -y torchao 2>/dev/null || true
 
 echo "[bootstrap] stage 5/5: flash-attn + project extras..."
 pip install -q --no-cache-dir -c "${TORCH_C}" "flash-attn>=2.7.0,<3" --no-build-isolation || {
