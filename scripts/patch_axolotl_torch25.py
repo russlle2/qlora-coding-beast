@@ -51,10 +51,28 @@ def install_whitelist(axolotl_dir: Path) -> None:
     print(f"[patch] whitelist.yaml installed at {dst}")
 
 
+def patch_torch_fsdp_stub() -> None:
+    """trl 0.29 imports FSDPModule (torch>=2.6); inject a stub for torch 2.5.x."""
+    import torch.distributed.fsdp as _fsdp
+
+    init_path = Path(_fsdp.__file__)
+    text = init_path.read_text(encoding="utf-8")
+    if "FSDPModule" in text:
+        print("[patch] FSDPModule already in torch.distributed.fsdp")
+        return
+    text += (
+        "\n\n# Stub for trl 0.29 compatibility on torch 2.5.x (single-GPU only).\n"
+        "class FSDPModule:\n    pass\n"
+    )
+    init_path.write_text(text, encoding="utf-8")
+    print(f"[patch] FSDPModule stub injected at {init_path}")
+
+
 def main() -> int:
     axolotl_dir = find_axolotl_dir()
     patch_enums(axolotl_dir)
     install_whitelist(axolotl_dir)
+    patch_torch_fsdp_stub()
 
     import os
     os.environ.setdefault("AXOLOTL_DO_NOT_TRACK", "1")
