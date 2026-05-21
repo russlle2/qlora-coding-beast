@@ -24,7 +24,7 @@ BASE = "Qwen/Qwen3-Coder-30B-A3B-Instruct"
 DATA_PATH = "/workspace/data/uncensored_chatml.jsonl"
 OUT_DIR = "/workspace/outputs/adapter_uncensored"
 HUB_REPO = "russlle2/qwen3-coder-30b-a3b-adapter-uncensored"
-SEQ_LEN = 8192
+SEQ_LEN = 4096
 
 
 def main() -> None:
